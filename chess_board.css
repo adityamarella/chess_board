@@ -1,0 +1,33 @@
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+}
+body {
+    font-family: sans-serif;
+    color: black;
+    background: white;
+}
+.board_table {
+    border-style: double;
+    border-color: black;
+    border-width: 3px;
+    box-shadow: 0px 0px 15px #AAAAAA;
+    -webkit-box-shadow: 0px 0px 15px #AAAAAA;
+    -moz-box-shadow: 0px 0px 15px #AAAAAA;
+} 
+
+.white_cell, .black_cell, .highlight_white_cell, .highlight_black_cell {
+    height: 50px;
+    width: 50px;
+}
+.white_cell, .highlight_white_cell {
+    background: none repeat scroll 0 0 #EFF4EC;
+}
+.black_cell, .highlight_black_cell {
+    background: none repeat scroll 0 0 #C6CEC3;
+}
+.highlight_white_cell, .highlight_black_cell {
+    background: none repeat scroll 0 0 #DAF4D7;
+}
