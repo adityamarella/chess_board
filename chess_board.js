@@ -19,22 +19,34 @@ var g_piece_img =
     "K":"images/wk.png",
     "Q":"images/wq.png"
 };
+INITIAL_STATE = [
+       ["r","n","b","q","k","b","n","r"],
+       ["p","p","p","p","p","p","p","p"],
+       ["s","s","s","s","s","s","s","s"],
+       ["s","s","s","s","s","s","s","s"],
+       ["s","s","s","s","s","s","s","s"],
+       ["s","s","s","s","s","s","s","s"],
+       ["P","P","P","P","P","P","P","P"],
+       ["R","N","B","Q","K","B","N","R"]];
 
 function ChessBoard() 
 {
     //private
     this.hilited_i=-1;
     this.hilited_j=-1;
-    this.white_cell = "white_cell";
-    this.black_cell = "black_cell";
+    this.whiteCell = "white_cell";
+    this.blackCell = "black_cell";
+    this.boardState ; 
+    this.isWhiteMove = true;
+    this.direction = 1; //1 for up -1 for down
 
     this.resetHilite = function()
     {
         var td = document.getElementById("td_"+this.hilited_i+"_"+this.hilited_j);
         if( (this.hilited_i+this.hilited_j) % 2 == 0)
-            td.className = this.black_cell;
+            td.className = this.blackCell;
         else
-            td.className = this.white_cell;
+            td.className = this.whiteCell;
         this.hilited_i=-1;
         this.hilited_j=-1;
     }
@@ -52,12 +64,12 @@ function ChessBoard()
         return str;
     }
 
-    this.initBoard = function(boardArray) 
+    this.drawBoard = function() 
     {
        var i=0, j=0;
        for(i=0; i<8; i++) {
            for(j=0; j<8; j++) {
-               var piece = boardArray[i].charAt(j);
+               var piece = this.boardState[i][j];
                if(piece != 's')
                    document.getElementById('td_'+i+"_"+j).innerHTML = this.getImageHtml(i,j,piece);
            }
@@ -68,7 +80,7 @@ function ChessBoard()
     this.getCellHtml = function(i,j,piece,isWhite) 
     {
         var idSuffix = i+'_'+j;
-        var cls = isWhite?this.white_cell:this.black_cell;
+        var cls = isWhite?this.whiteCell:this.blackCell;
         var color = isWhite?"#FFFFFF":"#000000";
 
         var str = '<td';
@@ -97,17 +109,42 @@ function ChessBoard()
             board += '</tr>';
         }
         board += '</table>'
-
         document.getElementById('board_div').innerHTML = board;
 
-        var boardArray = ["rnbkqbnr","pppppppp","ssssssss","ssssssss","ssssssss","ssssssss","PPPPPPPP","RNBQKBNR"];
-
-        this.initBoard(boardArray);
+        this.boardState = INITIAL_STATE;
+        this.drawBoard();
     }
 
+    /*
+    *@returns -1 for black, 1 for white, 0 for blank
+    */
+    this.getColor = function(i,j)
+    {
+        var piece = this.boardState[i][j];
+        if(piece == 's')
+            return 0;
+        if(piece == piece.toLowerCase()) 
+            return -1;
+        return 1; 
+    }
      
     this.validatePawnMove = function(srci, srcj, desti, destj)
     {
+        var srcPiece = this.boardState[srci][srcj];
+        var destPiece = this.boardState[desti][destj];
+        
+        var rDelta = srci - desti;
+        var cDelta = Math.abs(destj - srcj);
+
+        if(rDelta*this.direction<0 || rDelta>2 || cDelta>1)
+            return false;
+
+        if(rDelta==2 && (this.direction<0 && srci!=6) && (this.direction>0 && srci!=1)) 
+            return false;
+       
+        if(cDelta==1 && !(this.getColor(srci,srcj)*this.getColor(desti,destj) < 0) ) 
+            return false;
+
         return true;
     }
 
@@ -136,9 +173,19 @@ function ChessBoard()
         return true;
     }
 
-    this.validateMove = function(piece, srci, srcj, desti, destj) 
+    this.validateMove = function(srci, srcj, desti, destj) 
     {
         var ret = true;
+        var piece = this.boardState[srci][srcj];
+        if(piece == 's')
+            return false;
+
+        if(this.isWhiteMove && piece==piece.toLowerCase())
+            return false;
+            
+        if(!this.isWhiteMove && piece==piece.toUpperCase())
+            return false;
+
         var str = piece.toLowerCase();
         switch(str) {
         case 'p':
@@ -170,27 +217,23 @@ function ChessBoard()
             return;
         }
      
+        if(!this.validateMove(srci, srcj, desti, destj)) {
+            this.resetHilite();
+            return;
+        }
+
+        //toggle turn
+        this.isWhiteMove = !this.isWhiteMove;
+        this.direction *= -1; 
+
+        //change board state
+        this.boardState[desti][destj] = this.boardState[srci][srcj]
+        this.boardState[srci][srcj] = 's'
+        
+        //change board rendering
         var srcCell = document.getElementById("td_"+srci+"_"+srcj);
-        var a = srcCell.innerHTML;
-        if(a==null || a=='' ) {
-            this.resetHilite();
-            return;
-        }
-
         var destCell = document.getElementById("td_"+desti+"_"+destj);
-        var b = destCell.innerHTML;
-        if(b==null || b=='' ) {
-            this.resetHilite();
-            return;
-        }
-
-        var piece = srcCell.firstChild.name;
-        if(!this.validateMove(piece, srci, srcj, desti, destj)) {
-            this.resetHilite();
-            return;
-        }
-
-        destCell.innerHTML = a;
+        destCell.innerHTML = srcCell.innerHTML;
         srcCell.innerHTML = ''; 
 
         //resetting hilited coordinates
