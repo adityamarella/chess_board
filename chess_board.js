@@ -74,7 +74,6 @@ function ChessBoard()
                    document.getElementById('td_'+i+"_"+j).innerHTML = this.getImageHtml(i,j,piece);
            }
        } 
-
     }
 
     this.getCellHtml = function(i,j,piece,isWhite) 
@@ -127,84 +126,218 @@ function ChessBoard()
             return -1;
         return 1; 
     }
-     
-    this.validatePawnMove = function(srci, srcj, desti, destj)
+   
+    //!isSameColor() is not same as isDifferentColor() 
+    this.isSameColor = function(srci, srcj, desti, destj)
     {
-        var srcPiece = this.boardState[srci][srcj];
-        var destPiece = this.boardState[desti][destj];
-        
-        var rDelta = srci - desti;
-        var cDelta = Math.abs(destj - srcj);
+        return this.getColor(srci,srcj)*this.getColor(desti,destj) > 0;
+    }
+ 
+    this.isDifferentColor = function(srci, srcj, desti, destj)
+    {
+        return this.getColor(srci,srcj)*this.getColor(desti,destj) < 0;
+    }
 
-        if(rDelta*this.direction<0 || rDelta>2 || cDelta>1)
+    this.attackedByWhite = function(i,j)
+    {
+        var state = this.boardState[i][j];
+        this.boardState[i][j] = 'p';
+        var p, q;
+        for(p=0; p<8; p++) {
+            for(q=0; q<8; q++) {
+                var piece = this.boardState[p][q];
+                if(piece!='s' && piece == piece.toUpperCase()) {
+                    if(this.validMove(p,q,i,j)) {
+                        this.boardState[i][j] = state;
+                        return true;    
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    this.attackedByBlack = function(i,j)
+    {
+        var state = this.boardState[i][j];
+        this.boardState[i][j] = 'P';
+        var p, q;
+        for(p=0; p<8; p++) {
+            for(q=0; q<8; q++) {
+                var piece = this.boardState[p][q];
+                if(piece!='s' && piece == piece.toLowerCase()) {
+                    if(this.validMove(p,q,i,j)) {
+                        this.boardState[i][j] = state;
+                        return true;    
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    this.hasBlockadeI = function(i1,i2,j)
+    {
+        var p,d;
+        if(i2-i1 > 0)
+            d=1;
+        else
+            d=-1;
+
+        for(p=i1+d; p!=i2; p+=d) {
+            if(this.boardState[p][j]!='s') {
+                return true;
+            }
+        }
+        return false;     
+    }
+     
+    this.hasBlockadeJ = function(j1,j2,i)
+    {
+        var p;
+        if(j2-j1 > 0)
+            d=1;
+        else
+            d=-1;
+        for(p=j1+d; p!=j2; p+=d) {
+            if(this.boardState[i][p]!='s') {
+                return true;
+            }
+        }
+        return false;     
+    }
+ 
+    this.hasDiagonalBlockade = function(i1,j1,i2,j2)
+    {
+        var di = (i2-i1)>0?1:-1;
+        var dj = (j2-j1)>0?1:-1;
+
+        var len = Math.abs(i2-i1);
+        var i = i1, j = j1;
+        var p;
+        for(p=1; p<len; p++) {
+            i += di; j += dj;
+            if(this.boardState[i][j]!='s') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    this.validPawnMove = function(srci, srcj, desti, destj)
+    {
+        var iDelta = Math.abs(srci - desti);
+        var jDelta = Math.abs(destj - srcj);
+
+        if((srci-desti)*this.direction<0 || iDelta>2 || jDelta>1)
             return false;
 
-        if(rDelta==2 && (this.direction<0 && srci!=6) && (this.direction>0 && srci!=1)) 
+        if(iDelta==2 && !((this.direction>0 && srci==6) || (this.direction<0 && srci==1)) )
+            return false;
+
+        if(jDelta==0 && iDelta==1 && this.isDifferentColor(srci, srcj, desti, destj))
             return false;
        
-        if(cDelta==1 && !(this.getColor(srci,srcj)*this.getColor(desti,destj) < 0) ) 
+        if(jDelta==1 && !this.isDifferentColor(srci, srcj, desti, destj)) 
             return false;
 
         return true;
     }
 
-    this.validateRookMove = function(srci, srcj, desti, destj)
+    this.validRookMove = function(srci, srcj, desti, destj)
     {
+        var iDelta = Math.abs(srci - desti);
+        var jDelta = Math.abs(srcj - destj);
+       
+        if(iDelta * jDelta != 0)
+            return false;
+
+        if(iDelta==0 && this.hasBlockadeJ(srcj,destj,srci))
+            return false;        
+
+        if(jDelta==0 && this.hasBlockadeI(srci,desti,srcj))
+            return false;       
+ 
         return true;
     }
 
-    this.validateKnightMove = function(srci, srcj, desti, destj)
+    this.validKnightMove = function(srci, srcj, desti, destj)
     {
+        var iDelta = Math.abs(srci - desti);
+        var jDelta = Math.abs(srcj - destj);
+
+        if( (iDelta == 2 && jDelta == 1) || (iDelta==1 && jDelta==2) )
+            return true;
+        return false;
+    }
+
+    this.validBishopMove = function(srci, srcj, desti, destj)
+    {
+
+        var iDelta = Math.abs(srci - desti);
+        var jDelta = Math.abs(srcj - destj);
+ 
+        if(iDelta!=jDelta)
+            return false;
+ 
+        if(this.hasDiagonalBlockade(srci,srcj,desti,destj))
+            return false; 
+       
         return true;
     }
 
-    this.validateBishopMove = function(srci, srcj, desti, destj)
+    this.validQueenMove = function(srci, srcj, desti, destj)
     {
+        return this.validRookMove(srci, srcj, desti, destj) || this.validBishopMove(srci, srcj, desti, destj);
+    }
+
+    this.validKingMove = function(srci, srcj, desti, destj)
+    {
+        var iDelta = Math.abs(srci - desti);
+        var jDelta = Math.abs(srcj - destj);
+        
+        if(iDelta>1 || jDelta>1)
+            return false;
+
+        if(this.isWhiteMove && this.attackedByBlack(desti, destj))
+            return false;
+        
+        if(!this.isWhiteMove && this.attackedByWhite(desti, destj))
+            return false;
+
         return true;
     }
 
-    this.validateQueenMove = function(srci, srcj, desti, destj)
-    {
-        return true;
-    }
-
-    this.validateKingMove = function(srci, srcj, desti, destj)
-    {
-        return true;
-    }
-
-    this.validateMove = function(srci, srcj, desti, destj) 
+    this.validMove = function(srci, srcj, desti, destj) 
     {
         var ret = true;
         var piece = this.boardState[srci][srcj];
-        if(piece == 's')
+
+        if(this.isDifferentColor(srci,srcj,desti,destj) && this.boardState[desti][destj].toLowerCase()=='k')
             return false;
 
-        if(this.isWhiteMove && piece==piece.toLowerCase())
-            return false;
-            
-        if(!this.isWhiteMove && piece==piece.toUpperCase())
+        if(this.isSameColor(srci,srcj,desti,destj))
             return false;
 
         var str = piece.toLowerCase();
         switch(str) {
         case 'p':
-            ret = this.validatePawnMove(srci, srcj, desti, destj);
+            ret = this.validPawnMove(srci, srcj, desti, destj);
             break;
         case 'r': 
-            ret = this.validateRookMove(srci, srcj, desti, destj);
+            ret = this.validRookMove(srci, srcj, desti, destj);
             break;
         case 'n':
-            ret = this.validateKnightMove(srci, srcj, desti, destj);
+            ret = this.validKnightMove(srci, srcj, desti, destj);
             break;
         case 'b':
-            ret = this.validateBishopMove(srci, srcj, desti, destj);
+            ret = this.validBishopMove(srci, srcj, desti, destj);
             break;
         case 'q':
-            ret = this.validateQueenMove(srci, srcj, desti, destj);
+            ret = this.validQueenMove(srci, srcj, desti, destj);
             break;
         case 'k':
-            ret = this.validateKingMove(srci, srcj, desti, destj);
+            ret = this.validKingMove(srci, srcj, desti, destj);
             break;
         }
         return ret;
@@ -217,7 +350,22 @@ function ChessBoard()
             return;
         }
      
-        if(!this.validateMove(srci, srcj, desti, destj)) {
+        var piece = this.boardState[srci][srcj];
+
+        if(piece == 's')
+            return false;
+
+        if(this.isWhiteMove && piece==piece.toLowerCase()) {
+            this.resetHilite();
+            return ;
+        }
+
+        if(!this.isWhiteMove && piece==piece.toUpperCase()) {
+            this.resetHilite();
+            return ;
+        }
+
+        if(!this.validMove(srci, srcj, desti, destj)) {
             this.resetHilite();
             return;
         }
@@ -227,8 +375,8 @@ function ChessBoard()
         this.direction *= -1; 
 
         //change board state
-        this.boardState[desti][destj] = this.boardState[srci][srcj]
-        this.boardState[srci][srcj] = 's'
+        this.boardState[desti][destj] = this.boardState[srci][srcj];
+        this.boardState[srci][srcj] = 's';
         
         //change board rendering
         var srcCell = document.getElementById("td_"+srci+"_"+srcj);
@@ -252,8 +400,10 @@ function ChessBoard()
 
     this.onClicked = function(i,j)
     {
-       if(this.hilited_i==-1) 
-           this.hiliteSquare(i,j);
+       if(this.hilited_i==-1) {
+           if(this.boardState[i][j]!='s') 
+               this.hiliteSquare(i,j);
+       }
        else
            this.makeMoveUser(this.hilited_i, this.hilited_j, i, j);
     }
