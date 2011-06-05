@@ -19,7 +19,18 @@ var g_piece_img =
     "K":"images/wk.png",
     "Q":"images/wq.png"
 };
-INITIAL_STATE = [
+
+INITIAL_STATE_SIT_BLACK = [
+       ["R","N","B","K","Q","B","N","R"],
+       ["P","P","P","P","P","P","P","P"],
+       ["s","s","s","s","s","s","s","s"],
+       ["s","s","s","s","s","s","s","s"],
+       ["s","s","s","s","s","s","s","s"],
+       ["s","s","s","s","s","s","s","s"],
+       ["p","p","p","p","p","p","p","p"],
+       ["r","n","b","k","q","b","n","r"]];
+
+INITIAL_STATE_SIT_WHITE = [
        ["r","n","b","q","k","b","n","r"],
        ["p","p","p","p","p","p","p","p"],
        ["s","s","s","s","s","s","s","s"],
@@ -31,24 +42,111 @@ INITIAL_STATE = [
 
 function ChessBoard() 
 {
-    //private
-    this.hilited_i=-1;
-    this.hilited_j=-1;
+    //constants
     this.whiteCell = "white_cell";
     this.blackCell = "black_cell";
-    this.boardState ; 
+
+    //private
+    this.prevDesti = -1;
+    this.prevDestj = -1;
+    this.prevSrci = -1; 
+    this.prevSrcj = -1;
+
+    //stores the selected piece coordinates
+    this.clickedi = -1;
+    this.clickedj = -1;
+    //maintains the piece selection state
+    this.clicked = false ; 
+
+    //stores the current boardstate 
+    this.boardState ;
+ 
     this.isWhiteMove = true;
-    this.direction = 1; //1 for up -1 for down
+
+    //if initial board state is INITIAL_STATE_SIT_BLACK
+    //then initial direction should be -1 
+    //else 1
+    //this variable is initialized in createBoard function
+    this.direction ; //1 for up -1 for down
+
+    //castling state
+    this.white_can_oo = true;
+    this.white_can_ooo = true;
+    this.black_can_oo = true;
+    this.black_can_ooo = true;
 
     this.resetHilite = function()
     {
-        var td = document.getElementById("td_"+this.hilited_i+"_"+this.hilited_j);
-        if( (this.hilited_i+this.hilited_j) % 2 == 0)
+        if(this.prevDesti==-1)
+            return;
+        
+        var td = document.getElementById("td_"+this.prevDesti+"_"+this.prevDestj);
+        if( (this.prevDesti+this.prevDestj) % 2 == 0)
             td.className = this.blackCell;
         else
             td.className = this.whiteCell;
-        this.hilited_i=-1;
-        this.hilited_j=-1;
+
+        if(this.prevSrci==-1)
+            return;
+
+        td = document.getElementById("td_"+this.prevSrci+"_"+this.prevSrcj);
+        if( (this.prevSrci+this.prevSrcj) % 2 == 0)
+            td.className = this.blackCell;
+        else
+            td.className = this.whiteCell;
+
+        if(this.clickedi==-1)
+            return;
+        td = document.getElementById("td_"+this.clickedi+"_"+this.clickedj);
+        if( (this.clickedi+this.clickedj) % 2 == 0)
+            td.className = this.blackCell;
+        else
+            td.className = this.whiteCell;
+    }
+
+    this.createControls = function() 
+    {
+        var str = '<table border="0" cellspacing="0" cellpadding="0">';
+        str += '<tr>';
+        str += '<td>';
+        str += '<input type="BUTTON" onfocus="this.blur()" onclick="javascript:moveToStart()" title="go to game start" value="<<" id="startButton">';
+        str += '</td>';
+
+        str += '<td width="3">';
+        str += ''
+        str += '</td>';
+
+        str += '<td>';
+        str += '<input type="BUTTON" onfocus="this.blur()" onclick="javascript:moveBack()" title="move backward" value="<" id="backButton">';
+        str += '</td>';
+
+        str += '<td width="3">';
+        str += ''
+        str += '</td>';
+
+        str += '<td>';
+        str += '-';
+        str += '</td>';
+
+        str += '<td width="3">';
+        str += ''
+        str += '</td>';
+
+        str += '<td>';
+        str += '<input type="BUTTON" onfocus="this.blur()" onclick="javascript:moveForward()" title="move forward" value=">" id="forwardButton">';
+        str += '</td>';
+
+        str += '<td width="3">';
+        str += ''
+        str += '</td>';
+
+        str += '<td>';
+        str += '<input type="BUTTON" onfocus="this.blur()" onclick="javascript:moveToEnd()" title="go to game end" value=">>" id="endButton">';
+        str += '</td>';
+
+        str += '</tr>';
+        str += '</table>'; 
+        document.getElementById('board_controls').innerHTML = str; 
     }
 
     this.getImageHtml = function(i,j,piece)
@@ -95,7 +193,7 @@ function ChessBoard()
         return str;
     }
 
-    this.createBoard = function()
+    this.createBoard = function(boardState, direction)
     {
         var i=0, j=0;
         var board = '<table id="board_table" cellSpacing="0" cellPadding="0" style="height: 400px">';
@@ -110,7 +208,8 @@ function ChessBoard()
         board += '</table>'
         document.getElementById('board_div').innerHTML = board;
 
-        this.boardState = INITIAL_STATE;
+        this.boardState = boardState;
+        this.direction = direction;
         this.drawBoard();
     }
 
@@ -154,6 +253,7 @@ function ChessBoard()
                 }
             }
         }
+        this.boardState[i][j] = state;
         return false;
     }
 
@@ -173,6 +273,7 @@ function ChessBoard()
                 }
             }
         }
+        this.boardState[i][j] = state;
         return false;
     }
 
@@ -232,15 +333,32 @@ function ChessBoard()
         if((srci-desti)*this.direction<0 || iDelta>2 || jDelta>1)
             return false;
 
+        if(jDelta==1 && iDelta==0)
+            return false;
+
         if(iDelta==2 && !((this.direction>0 && srci==6) || (this.direction<0 && srci==1)) )
             return false;
 
         if(jDelta==0 && iDelta==1 && this.isDifferentColor(srci, srcj, desti, destj))
             return false;
        
-        if(jDelta==1 && !this.isDifferentColor(srci, srcj, desti, destj)) 
-            return false;
-
+        if(iDelta==1 && jDelta==1 ) {
+            //enpassant check
+            var prevSrci = this.prevSrci, prevSrcj = this.prevSrcj, prevDesti = this.prevDesti, prevDestj = this.prevDestj;
+            if(prevSrcj == destj && prevDestj == destj && 
+               (prevSrci==6 || prevSrci==1) &&
+               Math.abs(prevSrci-prevDesti)==2) {
+                //kill the opponent pawn 
+                var cell = document.getElementById("td_"+prevDesti+"_"+prevDestj);
+                cell.innerHTML = "";
+                this.boardState[prevDesti][prevDestj] = 's';
+            } 
+            else { 
+                if(!this.isDifferentColor(srci, srcj, desti, destj)) 
+                    return false;
+            }
+        }
+ 
         return true;
     }
 
@@ -256,8 +374,34 @@ function ChessBoard()
             return false;        
 
         if(jDelta==0 && this.hasBlockadeI(srci,desti,srcj))
-            return false;       
- 
+            return false;
+
+        //take away castling previlages
+        if(this.isWhiteMove) {
+            if(this.direction==1) {
+                if(srcj==7)
+                    this.white_can_oo = false; 
+                if(srcj==0)
+                    this.white_can_ooo = false; 
+            } else {
+                if(srcj==7)
+                    this.white_can_ooo = false; 
+                if(srcj==0)
+                    this.white_can_oo = false; 
+            }
+        } else {
+            if(this.direction==1) {
+                if(srcj==7)
+                    this.black_can_ooo = false; 
+                if(srcj==0)
+                    this.black_can_oo = false; 
+            } else {
+                if(srcj==7)
+                    this.black_can_oo = false; 
+                if(srcj==0)
+                    this.black_can_ooo = false; 
+            }
+        } 
         return true;
     }
 
@@ -291,20 +435,94 @@ function ChessBoard()
         return this.validRookMove(srci, srcj, desti, destj) || this.validBishopMove(srci, srcj, desti, destj);
     }
 
+    //util function
+    this.checkRowAttack = function(row, a, b)
+    {
+        var j;
+        for(j=a; j<b; j++) { 
+            if(this.isWhiteMove && this.attackedByBlack(row,j)) {
+                return true; 
+            }
+            if(!this.isWhiteMove && this.attackedByWhite(row,j)) {
+                return true; 
+            }
+        }
+        return false;
+    }
+
     this.validKingMove = function(srci, srcj, desti, destj)
     {
         var iDelta = Math.abs(srci - desti);
         var jDelta = Math.abs(srcj - destj);
         
-        if(iDelta>1 || jDelta>1)
+        if(iDelta>1)
             return false;
+     
+        if(jDelta>2)
+            return false;
+       
+        //check if king is trying to castle
+        if(jDelta==2) {
+            var canoo = this.isWhiteMove?this.white_can_oo:this.black_can_oo;
+            var canooo = this.isWhiteMove?this.white_can_ooo:this.black_can_ooo;
+            var rookSrcPositionj = 0; 
+            var rookDestPositionj = 0; 
+            var flag = true;
+            if(canooo && srcj==3 && destj==5) {
+                //check if srcj to 7 squares are attacked
+                if(this.checkRowAttack(srci,srcj,8))
+                    flag = false;
+                rookSrcPositionj = 7;
+                rookDestPositionj = 4;
+            } else if(canooo && srcj==4 && destj==2) {
+                //check if srcj to 0 squares are attacked
+                if(this.checkRowAttack(srci,0,srcj))
+                    flag = false;
+                rookSrcPositionj = 0;
+                rookDestPositionj = 3;
+            } else if(canoo && srcj==3 && destj==1) {
+                //check if srcj to 0 squares are attacked
+                if(this.checkRowAttack(srci,0,srcj))
+                    flag = false;
+                rookSrcPositionj = 0;
+                rookDestPositionj = 2;
+            } else if(canoo && srcj==4 && destj==6) {
+                //check if srcj to 7 squares are attacked
+                if(this.checkRowAttack(srci,srcj,8))
+                    flag = false;
+                rookSrcPositionj = 7;
+                rookDestPositionj = 5;
+            } else {
+                flag = false;
+            }
+            if(!flag)
+                return false;
+            else {
+                //move the rook
+                var srcCell = document.getElementById("td_"+srci+"_"+rookSrcPositionj);
+                var destCell = document.getElementById("td_"+srci+"_"+rookDestPositionj);
+                destCell.innerHTML = srcCell.innerHTML;
+                srcCell.innerHTML = '';
+                this.boardState[srci][rookDestPositionj] = this.boardState[srci][rookSrcPositionj];
+                this.boardState[srci][rookSrcPositionj] = 's';
+            }
+        }
 
         if(this.isWhiteMove && this.attackedByBlack(desti, destj))
             return false;
         
         if(!this.isWhiteMove && this.attackedByWhite(desti, destj))
             return false;
-
+         
+ 
+        //take away castling previlages 
+        if(this.isWhiteMove) {
+            this.white_can_oo = false;
+            this.white_can_ooo = false;
+        } else {
+            this.black_can_oo = false;
+            this.black_can_ooo = false;
+        }
         return true;
     }
 
@@ -346,66 +564,116 @@ function ChessBoard()
     this.makeMoveUser = function(srci,srcj,desti,destj)
     {
         if(srci==desti && srcj==destj) {
-            this.resetHilite();
-            return;
+            return false;
         }
      
-        var piece = this.boardState[srci][srcj];
-
-        if(piece == 's')
-            return false;
-
-        if(this.isWhiteMove && piece==piece.toLowerCase()) {
-            this.resetHilite();
-            return ;
-        }
-
-        if(!this.isWhiteMove && piece==piece.toUpperCase()) {
-            this.resetHilite();
-            return ;
-        }
-
         if(!this.validMove(srci, srcj, desti, destj)) {
-            this.resetHilite();
-            return;
+            return false;
         }
+
+        //make the move 
+        this.boardState[desti][destj] = this.boardState[srci][srcj];
+        this.boardState[srci][srcj] = 's';
+        
+        //check if this move is bringing the king under attack
+        var x = this.findPieceCoordinates((this.isWhiteMove?'K':'k'));
+        var attacked = false;
+        if(this.isWhiteMove)
+            attacked = this.attackedByBlack(x[0], x[1]); 
+        else
+            attacked = this.attackedByWhite(x[0], x[1]);
+        if(attacked) { 
+            //revert move and return
+            this.boardState[srci][srcj] = this.boardState[desti][destj];
+            this.boardState[desti][destj] = 's';
+            return false;
+        }
+
+        //convert move to pgn notation
+        this.getPGNMove(srci,srcj,desti,destj);
 
         //toggle turn
         this.isWhiteMove = !this.isWhiteMove;
         this.direction *= -1; 
-
-        //change board state
-        this.boardState[desti][destj] = this.boardState[srci][srcj];
-        this.boardState[srci][srcj] = 's';
         
         //change board rendering
         var srcCell = document.getElementById("td_"+srci+"_"+srcj);
         var destCell = document.getElementById("td_"+desti+"_"+destj);
         destCell.innerHTML = srcCell.innerHTML;
-        srcCell.innerHTML = ''; 
+        srcCell.innerHTML = '';
+        this.hiliteSquare(desti, destj);
 
-        //resetting hilited coordinates
-        this.resetHilite();
+        this.prevDesti = desti;
+        this.prevDestj = destj;
+        this.prevSrci = srci;
+        this.prevSrcj = srcj;
+        return true;
     }
 
+    this.findPieceCoordinates = function(piece)
+    {
+        var i,j;
+        for(i=0; i<8; i++) {
+            for(j=0; j<8; j++) {
+                if(this.boardState[i][j]==piece)
+                    return [i,j];
+            }
+        }
+        return [-1,-1];
+    }
+
+    this.getPGNMove = function(srci,srcj,desti,destj)
+    {
+        var srow = srcj, scol = String.fromCharCode('a'.charCodeAt(0)+srci);
+
+    }
+   
     this.hiliteSquare = function(i,j)
     {
         var hiliteClass = "highlight_white_cell";
         if((i+j)%2==0)
             hiliteClass = "highlight_black_cell";
         document.getElementById("td_"+i+"_"+j).className = hiliteClass;
-        this.hilited_i = i;
-        this.hilited_j = j;
     }
 
     this.onClicked = function(i,j)
     {
-       if(this.hilited_i==-1) {
-           if(this.boardState[i][j]!='s') 
-               this.hiliteSquare(i,j);
+
+       var piece = this.boardState[i][j];
+       
+       //disallow click on empty squares
+       //disallow click on wrong colored piece
+       if(this.clicked==false && 
+           (piece=='s' || 
+            (this.isWhiteMove && piece==piece.toLowerCase()) ||
+            (!this.isWhiteMove && piece==piece.toUpperCase())
+           ))
+           return ;
+
+       //when the same color piece is clicked the second time, 
+       //unhilite the old piece and hilite new piece and change
+       //clicked coordinates
+       if(this.clicked==true && piece!='s') {
+           if(this.isWhiteMove && piece==piece.toUpperCase()) {
+               this.clicked = false;
+           }
+           if(!this.isWhiteMove && piece==piece.toLowerCase()) {
+               this.clicked = false;
+           }
        }
-       else
-           this.makeMoveUser(this.hilited_i, this.hilited_j, i, j);
+
+       if(!this.clicked) {
+           this.resetHilite();
+           this.hiliteSquare(i,j);
+           this.clickedi = i;
+           this.clickedj = j;
+           this.clicked = true;
+       }
+       else {
+           if(this.makeMoveUser(this.clickedi, this.clickedj, i, j))
+               this.clicked = false;
+       }
+
     }
 
 }
@@ -413,10 +681,31 @@ function ChessBoard()
 function init() 
 {
     g_board = new ChessBoard();
-    g_board.createBoard();
+    //g_board.createControls();
+    g_board.createBoard(INITIAL_STATE_SIT_WHITE, 1);
 }
 
 function onClicked(i,j)
 {
     g_board.onClicked(i,j);
+}
+
+function moveToStart()
+{
+     
+}
+
+function moveBack() 
+{
+
+}
+
+function moveForward()
+{
+
+}
+
+function moveToEnd()
+{
+
 }
