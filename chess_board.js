@@ -376,7 +376,7 @@ function ChessBoard()
         if(jDelta==0 && this.hasBlockadeI(srci,desti,srcj))
             return false;
 
-        //take away castling previlages
+        //take away castling privileges
         if(this.isWhiteMove) {
             if(this.direction==1) {
                 if(srcj==7)
@@ -515,7 +515,7 @@ function ChessBoard()
             return false;
          
  
-        //take away castling previlages 
+        //take away castling privileges 
         if(this.isWhiteMove) {
             this.white_can_oo = false;
             this.white_can_ooo = false;
